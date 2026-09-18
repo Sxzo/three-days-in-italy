@@ -19,7 +19,7 @@ Reading that kind of text is a job for an LLM. The question was how much of the 
 | `llm` | 16 | Prose the regex can't read, parsed once and cached |
 | `inferred` | 26 | Nothing posted, so a per-type default window fills in |
 
-This all runs offline, behind tests for the schema and the trickier LLM outputs. The live server just loads a prebuilt JSON file. On the production server there's no LLM call, no network, no API key, nothing that can differ between deploys.
+This all runs offline, behind tests for the schema and the trickier LLM outputs. The live server just loads a prebuilt JSON file: no LLM call, no outbound requests, no API key, nothing that can differ between deploys.
 
 ## The planner
 
