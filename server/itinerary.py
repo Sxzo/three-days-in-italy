@@ -1,4 +1,4 @@
-"""Turn a filtered set of places into a three-day, hour-by-hour itinerary.
+﻿"""Turn a filtered set of places into a three-day, hour-by-hour itinerary.
 
 The planner is greedy rather than optimal: each day starts at the hub and
 repeatedly appends the highest-scoring stop that still leaves time to get back,
@@ -20,7 +20,7 @@ from filtering import Preferences, filter_places, preference_matches, schedule_f
 # must end back at the hub inside this window; it also stands in as the assumed
 # window for places whose real hours are unknown.
 DAY_START = time(9, 0)
-DAY_END = time(20, 0)
+DAY_END = time(22, 30)
 
 # A deliberately simple travel estimate until a routing service is introduced.
 # Haversine distance is inflated to approximate a road route, then converted to
@@ -29,11 +29,22 @@ ROAD_DISTANCE_FACTOR = 1.25
 AVERAGE_TRAVEL_SPEED_MPH = 22
 MIN_TRAVEL_MINUTES = 5
 
+# The baseline is the dataset mean, so the term reads as better or worse than a
+# typical place. Ratings cluster tightly around it, hence the modest weight:
+# raising it trades whole stops for hundredths of a rating point.
+RATING_BASELINE = 4.5
+RATING_WEIGHT = 1.0
+
 PREFERENCE_WEIGHT = 2.0
 BUDGET_LEVEL_PENALTY = 1.0
 TRAVEL_HOUR_PENALTY = 1.0
 WAIT_HOUR_PENALTY = 0.5
 UNCONFIRMED_HOURS_PENALTY = 0.5
+
+# A day holds at most one restaurant per meal. Visits starting before this are
+# lunch, after are dinner. Without the cap, the evening fills with back-to-back
+# dinners, because restaurants are all that is still open once the sights close.
+MEAL_SPLIT = time(17, 0)
 
 
 # Calculate straight-line distance with the Haversine formula. The destination
@@ -107,6 +118,10 @@ def visit_window(place, trip_day, earliest_start, day_end):
     return None
 
 
+def meal_slot(starts_at):
+    return 'dinner' if starts_at.time() >= MEAL_SPLIT else 'lunch'
+
+
 # Build and score one possible next stop. Reject it if its visit and return trip
 # cannot finish before day-end; keep unconfirmed hours with a scoring penalty.
 def candidate_option(
@@ -143,16 +158,16 @@ def candidate_option(
         max(0, price_level - max_budget) if max_budget is not None else 0
     )
 
-    # Higher scores are better. Rating is the baseline, preference matches add
-    # value, while exceeding the budget preference, extra route time, waiting,
-    # and unconfirmed hours reduce it.
+    # Higher scores are better. Rating is measured against RATING_BASELINE,
+    # preference matches add value, while exceeding the budget preference, extra
+    # route time, waiting, and unconfirmed hours reduce it.
     # With the current weights, a confirmed 4.6-rated place matching one
     # preference, adding 30 minutes of travel and 20 minutes of waiting scores
-    # 5.93. If its hours were unconfirmed, another 0.5 would make the score 5.43:
-    # 4.6 + (1 * 2.0) - (0.5 * 1.0) - (0.33 * 0.5) = 5.93
-    # 5.93 - (1 * 0.5) = 5.43
+    # 1.43. If its hours were unconfirmed, another 0.5 would make the score 0.93:
+    # (0.1 * 1.0) + (1 * 2.0) - (0.5 * 1.0) - (0.33 * 0.5) = 1.43
+    # 1.43 - (1 * 0.5) = 0.93
     score = (
-        place['rating']
+        (place['rating'] - RATING_BASELINE) * RATING_WEIGHT
         + matched_preferences * PREFERENCE_WEIGHT
         - over_budget_levels * BUDGET_LEVEL_PENALTY
         - added_route_minutes / 60 * TRAVEL_HOUR_PENALTY
@@ -210,53 +225,57 @@ def get_itinerary(places, args):
         current_time = datetime.combine(trip_day, DAY_START)
         day_end = datetime.combine(trip_day, DAY_END)
         day_places = []
+        meals_taken = set()
         visit_minutes = 0
         travel_total = 0
         travel_miles_total = 0
 
-        while True:
+        # Every place in the pool that can still be visited from where the day
+        # currently stands. Hard per-day rules live here: each one is a reason
+        # to skip a candidate that candidate_option() found feasible.
+        def feasible_options(pool):
             options = []
+            for place in pool:
+                option = candidate_option(
+                    place,
+                    trip_day,
+                    current_time,
+                    current_point,
+                    hub_coordinates,
+                    includes,
+                    preferences.max_budget,
+                    day_end,
+                )
+                if option is None:
+                    continue
+                if (
+                    place['type'] == 'restaurant'
+                    and meal_slot(option['starts_at']) in meals_taken
+                ):
+                    continue
+                options.append(option)
+            return options
 
+        while True:
             # Day two is reserved for a day trip. Left alone, the scoring would
             # keep picking hub places all three days, because anything further
             # out pays a travel penalty it can rarely win back. Restricting the
             # candidates for one day is a blunt way to buy variety without
             # reweighting the score for the other two.
+            options = []
             if offset == 1:
-                for place in [p for p in remaining if p['city'] != start_hub]:
-                    option = candidate_option(
-                        place,
-                        trip_day,
-                        current_time,
-                        current_point,
-                        hub_coordinates,
-                        includes,
-                        preferences.max_budget,
-                        day_end,
-                    )
-                    if option is not None:
-                        options.append(option)
+                options = feasible_options(
+                    [p for p in remaining if p['city'] != start_hub]
+                )
 
             # Fall back to the unrestricted set. This covers day one and three,
             # and day two once the out-of-hub places are used up or too far to
             # reach and still return by DAY_END. Rome is the case worth knowing:
             # nothing outside it is reachable and back within the day, so its
             # day two quietly stays in the city rather than failing.
-            if len(options) == 0:
-                for place in remaining:
-                    option = candidate_option(
-                        place,
-                        trip_day,
-                        current_time,
-                        current_point,
-                        hub_coordinates,
-                        includes,
-                        preferences.max_budget,
-                        day_end,
-                    )
-                    if option is not None:
-                        options.append(option)
-            
+            if not options:
+                options = feasible_options(remaining)
+
             if not options:
                 break
 
@@ -267,7 +286,9 @@ def get_itinerary(places, args):
             selected = max(
                 options,
                 key=lambda option: (
-                    option['score'],
+                    # Rounded so the terms below settle genuine ties rather than
+                    # float noise in the last decimal place.
+                    round(option['score'], 6),
                     # Offset from datetime.min rather than .timestamp(), which
                     # goes through the platform clock and raises OSError on
                     # Windows for any date before 1970.
@@ -276,6 +297,8 @@ def get_itinerary(places, args):
                 ),
             )
             place = selected['place']
+            if place['type'] == 'restaurant':
+                meals_taken.add(meal_slot(selected['starts_at']))
             day_places.append(
                 {
                     **place,
