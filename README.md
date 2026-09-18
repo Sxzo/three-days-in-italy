@@ -11,7 +11,7 @@ I built a small planner that turns the messy 103-place catalog in `italy.json` i
 
 Whoever wrote this problem at Stripe had no intention of making it easy to parse. Nine places have no duration, tags are spelled both `local_favorite` and `local-favorite`, and `hours` is free prose, with notes like the Vatican's "Closed Sundays except last Sunday of the month."
 
-Reading that kind of text is a job for an LLM. The question was how much of the data it should touch, since cost grows with every row and hallucination risk with every call. To account for this, I built a hybrid pipeline: regex and defaults wherever they work, and a narrow LLM prompt only for what they can't read.
+Reading that kind of text is a job for an LLM. The question was how much of the data it should touch, since cost grows with every row and hallucination risk with every call. To account for this, I built a hybrid pipeline: regex and defaults wherever they work, and a narrow LLM prompt only for what can't be simply parsed.
 
 | Source | Count | How |
 | --- | --- | --- |
@@ -19,7 +19,7 @@ Reading that kind of text is a job for an LLM. The question was how much of the 
 | `llm` | 16 | Prose the regex can't read, parsed once and cached |
 | `inferred` | 26 | Nothing posted, so a per-type default window fills in |
 
-This all runs offline, behind tests for the schema and the trickier LLM outputs. The live server just loads a prebuilt JSON file: no LLM call, no network, no API key, nothing that can differ between deploys.
+This all runs offline, behind tests for the schema and the trickier LLM outputs. The live server just loads a prebuilt JSON file. On the production server there's no LLM call, no network, no API key, nothing that can differ between deploys.
 
 ## The planner
 
