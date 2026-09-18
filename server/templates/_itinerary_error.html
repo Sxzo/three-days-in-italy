@@ -1,0 +1,10 @@
+{#
+  Shown for a trip that could not be built at all (bad hub or date), not for one
+  that simply found nothing; an empty day is handled inside _itinerary.html.
+  Deliberately carries no .itinerary class, so index.html leaves the form up.
+#}
+<div class="empty-state itinerary-error" role="alert">
+  <span aria-hidden="true">!</span>
+  <h3>We couldn’t build that trip</h3>
+  <p>{{ message }}. Check your starting city and date, then try again.</p>
+</div>

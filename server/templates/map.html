@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="View your three-day Italy itinerary on a map.">
+  <title>Your itinerary map — Tre Giorni</title>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.7.1/dist/maplibre-gl.css">
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body class="map-page">
+  <main class="map-layout">
+    <aside class="map-sidebar">
+      <div class="map-sidebar-header">
+        <a class="itinerary-back" href="/" onclick="if (history.length > 1) { event.preventDefault(); history.back(); }">
+          <span aria-hidden="true">←</span> Back to itinerary
+        </a>
+        <p class="eyebrow">Your route at a glance</p>
+        <h1>Three days around {{ itinerary.hub }}</h1>
+        <p>{{ itinerary.total_places }} stops · {{ itinerary.total_travel_miles }} estimated miles</p>
+      </div>
+
+      <div class="map-days">
+        {% for day in itinerary.days %}
+        {% set day_number = loop.index %}
+        <section class="map-day day-{{ day_number }}">
+          <header>
+            <span>0{{ day_number }}</span>
+            <div>
+              <p>Day {{ day_number }}</p>
+              <h2>{{ day.display_date }}</h2>
+            </div>
+          </header>
+          {% if day.places %}
+          <ol>
+            {% for stop in stops if stop.day_number == day_number %}
+            <li>
+              <button type="button" data-map-stop="{{ stop.number }}">
+                <span class="map-list-number">{{ stop.number }}</span>
+                <span class="map-list-copy">
+                  <strong>{{ stop.name }}</strong>
+                  <small>{{ stop.start_time }} · {{ stop.city }}{% if stop.neighborhood %}, {{ stop.neighborhood }}{% endif %}</small>
+                </span>
+                <span class="map-list-arrow" aria-hidden="true">›</span>
+              </button>
+            </li>
+            {% endfor %}
+          </ol>
+          {% else %}
+          <p class="map-day-empty">No stops planned.</p>
+          {% endif %}
+        </section>
+        {% endfor %}
+      </div>
+    </aside>
+
+    <section class="map-panel" aria-label="Itinerary map">
+      <div id="itinerary-map"></div>
+      {% if not stops %}
+      <div class="map-empty">There are no itinerary stops to display.</div>
+      {% endif %}
+    </section>
+  </main>
+
+  <script src="https://unpkg.com/maplibre-gl@5.7.1/dist/maplibre-gl.js"></script>
+  <script>
+    // DATA HANDOFF: Flask builds the itinerary in Python, then Jinja's `tojson`
+    // safely serializes its ordered stops into this browser-side array.
+    const stops = {{ stops | tojson }};
+
+    // OpenFreeMap supplies the keyless Liberty basemap rendered by MapLibre.
+    const map = new maplibregl.Map({
+      container: "itinerary-map",
+      style: "https://tiles.openfreemap.org/styles/liberty",
+      center: [12.5, 42.5],
+      zoom: 5,
+      attributionControl: false
+    });
+    map.addControl(new maplibregl.NavigationControl(), "bottom-right");
+    map.addControl(new maplibregl.AttributionControl({ compact: true }));
+
+    // Keep each marker and popup addressable by its itinerary stop number.
+    const markers = new Map();
+    const bounds = new maplibregl.LngLatBounds();
+    let activePopup = null;
+
+    stops.forEach((stop) => {
+      // MapLibre coordinates are longitude first, unlike the dataset fields.
+      const point = [stop.longitude, stop.latitude];
+      const markerElement = document.createElement("button");
+      markerElement.className = `numbered-map-marker day-${stop.day_number}`;
+      markerElement.type = "button";
+      markerElement.setAttribute("aria-label", `${stop.number}. ${stop.name}`);
+      markerElement.innerHTML = `<span>${stop.number}</span>`;
+
+      const popupContent = document.createElement("div");
+      popupContent.className = "map-popup";
+      const popupMeta = document.createElement("small");
+      popupMeta.textContent = `Day ${stop.day_number} · ${stop.start_time}–${stop.end_time}`;
+      const popupName = document.createElement("strong");
+      popupName.textContent = stop.name;
+      const popupLocation = document.createElement("span");
+      popupLocation.textContent = `${stop.city}${stop.neighborhood ? ` · ${stop.neighborhood}` : ""}`;
+      popupContent.append(popupMeta, popupName, popupLocation);
+
+      const popup = new maplibregl.Popup({ offset: 22 })
+        .setLngLat(point)
+        .setDOMContent(popupContent);
+      const marker = new maplibregl.Marker({ element: markerElement, anchor: "bottom" })
+        .setLngLat(point)
+        .addTo(map);
+      markerElement.addEventListener("click", () => selectStop(stop.number, false));
+      markers.set(stop.number, { marker, popup });
+      bounds.extend(point);
+    });
+
+    // Select from either the sidebar or a pin, closing any previously open popup.
+    function selectStop(number, moveMap = true) {
+      document.querySelectorAll("[data-map-stop]").forEach((button) => {
+        button.classList.toggle("is-active", Number(button.dataset.mapStop) === number);
+      });
+      const selected = markers.get(number);
+      if (!selected) return;
+      if (moveMap) {
+        map.flyTo({
+          center: selected.marker.getLngLat(),
+          zoom: Math.max(map.getZoom(), 13),
+          duration: 600
+        });
+      }
+      if (activePopup && activePopup !== selected.popup) activePopup.remove();
+      if (!selected.popup.isOpen()) selected.popup.addTo(map);
+      activePopup = selected.popup;
+      document.querySelector(`[data-map-stop="${number}"]`)?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest"
+      });
+    }
+
+    document.querySelectorAll("[data-map-stop]").forEach((button) => {
+      button.addEventListener("click", () => selectStop(Number(button.dataset.mapStop)));
+    });
+
+    // Frame every stop on first load, with sensible fallbacks for 0–1 results.
+    if (stops.length === 1) {
+      map.jumpTo({ center: bounds.getCenter(), zoom: 13 });
+    } else if (stops.length > 1) {
+      map.fitBounds(bounds, { padding: 52, maxZoom: 13 });
+    } else {
+      map.jumpTo({ center: [12.5, 42.5], zoom: 5 });
+    }
+  </script>
+</body>
+</html>

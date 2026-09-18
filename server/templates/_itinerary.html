@@ -1,0 +1,107 @@
+{#
+  The fragment htmx swaps into #results, not a standalone page. It must stay a
+  bare element with no <html> wrapper, and the outer .itinerary class is what
+  index.html looks for to decide this was a success rather than an error.
+#}
+<div class="itinerary">
+  <button class="itinerary-back" type="button" data-edit-trip>
+    <span aria-hidden="true">←</span> Edit trip
+  </button>
+  <header class="itinerary-header">
+    <div>
+      <p class="eyebrow">Your Italian escape</p>
+      <h2>Three days around {{ itinerary.hub }}</h2>
+      <p>Shaped by your preferences, posted hours, and travel time between stops.</p>
+    </div>
+    <div class="itinerary-actions">
+      {#
+        Copies the page URL, which index.html keeps pointed at the filters behind
+        this trip. Nothing is stored server-side: the link is the itinerary.
+      #}
+      <button class="share-button" type="button" data-share-trip>
+        <svg aria-hidden="true" viewBox="0 0 24 24">
+          <path d="M9.5 13.5a3.5 3.5 0 0 0 5.2.4l3-3a3.5 3.5 0 0 0-5-5l-1.2 1.2"></path>
+          <path d="M14.5 10.5a3.5 3.5 0 0 0-5.2-.4l-3 3a3.5 3.5 0 0 0 5 5l1.2-1.2"></path>
+        </svg>
+        <span class="share-label">Copy link</span>
+      </button>
+      <a class="map-button" href="{{ map_url }}">
+        <svg aria-hidden="true" viewBox="0 0 24 24">
+          <path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z"></path>
+          <circle cx="12" cy="10" r="2.5"></circle>
+        </svg>
+        <span>View map</span>
+      </a>
+      <div class="trip-summary" aria-label="Trip summary">
+        <strong>{{ itinerary.total_places }}</strong>
+        <span>places</span>
+        <i aria-hidden="true"></i>
+        <strong>{{ itinerary.total_travel_miles }}</strong>
+        <span>travel miles</span>
+      </div>
+    </div>
+  </header>
+
+  <div class="days">
+    {% for day in itinerary.days %}
+    <section class="day-card">
+      <div class="day-heading">
+        <span class="day-number">0{{ loop.index }}</span>
+        <div>
+          <p>Day {{ loop.index }}</p>
+          <h3>{{ day.display_date }}</h3>
+        </div>
+        <span class="day-duration">Back {{ day.return_time }}</span>
+      </div>
+
+      {% if day.places %}
+      <ol class="stops">
+        {% for place in day.places %}
+        <li>
+          <div class="stop-marker"><span>{{ loop.index }}</span></div>
+          <article>
+            <div class="stop-meta">
+              <span>{{ place.type.replace('_', ' ') }}</span>
+              <span>★ {{ place.rating }}</span>
+            </div>
+            <p class="stop-time">{{ place.start_time }}–{{ place.end_time }}</p>
+            <h4>{{ place.name }}</h4>
+            <p class="stop-location">{{ place.city }}{% if place.neighborhood %} · {{ place.neighborhood }}{% endif %}</p>
+            {% if place.description %}
+            <p class="stop-description">{{ place.description }}</p>
+            {% endif %}
+            {% if place.seasonal_notes %}
+            <p class="stop-seasonal-note">
+              <span aria-hidden="true">☀</span>
+              <span><strong>Seasonal note</strong>{{ place.seasonal_notes }}</span>
+            </p>
+            {% endif %}
+            <div class="stop-details">
+              <span>{{ place.travel_from_previous_miles }} mi · {{ place.travel_from_previous_minutes }} min travel</span>
+              <span>{{ place.duration_minutes }} min</span>
+              <span>{{ place.price_range }}</span>
+              {% if place.posted_hours %}
+                <span>Posted Hours: {{ place.posted_hours }}</span>
+              {% endif %}
+              {% if place.hours_unconfirmed %}<span class="booking">Hours unconfirmed</span>{% endif %}
+              {% if place.booking_required %}<span class="booking">Book ahead</span>{% endif %}
+            </div>
+          </article>
+        </li>
+        {% endfor %}
+      </ol>
+      {% else %}
+      <div class="day-empty">
+        <p>No open places matched this day.</p>
+        <span>Try another start date or fewer exclusions.</span>
+      </div>
+      {% endif %}
+      {% if day.places %}
+      <p class="itinerary-note">{{ day.return_to_hub_miles }} mi · {{ day.return_to_hub_minutes }} min back to {{ itinerary.end_hub }}</p>
+      {% endif %}
+    </section>
+    {% endfor %}
+  </div>
+
+  <p class="itinerary-note">Travel times are estimates based on distance, not live routes or traffic.</p>
+</div>

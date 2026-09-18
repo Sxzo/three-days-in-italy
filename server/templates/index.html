@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Find places for three memorable days in Italy.">
+  <title>Tre Giorni — Three days in Italy</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.7/dist/htmx.min.js"></script>
+</head>
+{#
+  A shared link arrives with its trip already built, so the page opens on the
+  itinerary. The class is the same one the htmx swap sets; see styles.css.
+#}
+<body{% if itinerary %} class="show-itinerary"{% endif %}>
+  <main>
+    <section id="planner-view" class="planner-view">
+      <div class="intro">
+        <p class="eyebrow">Plan your next adventure in paradise</p>
+        {#
+          The heading is here twice on purpose. The visible copy is typed out by
+          the script at the end of this file, so it is hidden from assistive
+          tech, which reads the static copy beside it instead of a heading that
+          rewrites itself letter by letter. Without JS the visible copy simply
+          stays as it is written here.
+        #}
+        <h1>
+          <span class="sr-only">Three days in Italy</span>
+          <span aria-hidden="true"><span data-headline-text>Three days in Italy</span></span>
+        </h1>
+        <p>Tell us where you’re starting and what you enjoy. We’ll narrow the list as you go.</p>
+      </div>
+
+      <!--
+        htmx submits these fields to /itinerary and swaps the returned fragment
+        into #results. The hidden `format` field is what makes the endpoint
+        answer with HTML instead of the JSON it serves by default.
+      -->
+      <form
+        class="filters"
+        hx-get="/itinerary"
+        hx-target="#results"
+        hx-trigger="submit"
+        hx-indicator="#loading, .submit-button"
+      >
+        <input type="hidden" name="format" value="html">
+        {#
+          Every field below is prefilled from `selections`, which is empty on a
+          normal visit and carries the query string on a shared link. That makes
+          the form the editable version of whatever trip the URL describes.
+        #}
+        {#
+          The star is hidden from assistive tech: the `required` attribute below
+          already announces the field as required, so reading the mark out too
+          would say it twice.
+        #}
+        <label class="field">
+          <span>Starting hub <span class="required-mark" aria-hidden="true">*</span></span>
+          <select id="hub" name="hub" required>
+            <option value="">Choose a city</option>
+            {% for city, count in cities %}
+            <option value="{{ city }}" data-city="{{ city }}"{% if city == selections.hub %} selected{% endif %}>{{ city }} — {{ count }} {{ 'place' if count == 1 else 'places' }}</option>
+            {% endfor %}
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Starting day <span class="required-mark" aria-hidden="true">*</span></span>
+          <input type="date" name="start_day" value="{{ selections.start_day }}" min="{{ min_day }}" required>
+        </label>
+
+        <!--
+          Chips repeat one field name so the query string carries every choice
+          (include=food&include=wine). The input-then-span order is required:
+          the checked state is styled through an adjacent-sibling selector, so
+          moving the input out of the label leaves the chips visually dead.
+        -->
+        <fieldset>
+          <legend>Looking for</legend>
+          <div class="chips">
+            {% for value, label in filters['include'] %}
+            <label><input type="checkbox" name="include" value="{{ value }}"{% if value in selections.include %} checked{% endif %}><span>{{ label }}</span></label>
+            {% endfor %}
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Avoid</legend>
+          <div class="chips avoid">
+            {% for value, label in filters['exclude'] %}
+            <label><input type="checkbox" name="exclude" value="{{ value }}"{% if value in selections.exclude %} checked{% endif %}><span>{{ label }}</span></label>
+            {% endfor %}
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Budget preference</legend>
+          <div class="chips">
+            <label><input type="radio" name="max_budget" value="1"{% if selections.max_budget == '1' %} checked{% endif %}><span>€</span></label>
+            <label><input type="radio" name="max_budget" value="2"{% if selections.max_budget == '2' %} checked{% endif %}><span>€€</span></label>
+            <label><input type="radio" name="max_budget" value="3"{% if selections.max_budget == '3' %} checked{% endif %}><span>€€€</span></label>
+            <label><input type="radio" name="max_budget" value="4"{% if selections.max_budget == '4' %} checked{% endif %}><span>€€€€</span></label>
+          </div>
+        </fieldset>
+
+        <div class="form-actions">
+          <button class="reset-button" type="reset">Clear preferences</button>
+          <button class="submit-button" type="submit">
+            <span class="button-label">Generate my itinerary</span>
+            <span class="button-loading">Building your trip…</span>
+          </button>
+        </div>
+      </form>
+    </section>
+
+    <section class="results-wrap">
+      <div id="loading" class="htmx-indicator">Planning three wonderful days…</div>
+      {#
+        Normally htmx fills this. A shared link is already a request for a
+        specific trip, so that one is rendered here instead — same fragments,
+        one round trip, no flash of the empty form on the way to the results.
+      #}
+      <div id="results">
+        {% if itinerary %}
+        {% include '_itinerary.html' %}
+        {% elif error %}
+        {% with message = error %}{% include '_itinerary_error.html' %}{% endwith %}
+        {% endif %}
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // The heading types itself in on load. The caret blinks on for a moment
+    // after the last letter, then goes, leaving the line as the template wrote
+    // it.
+    const HEADLINE = "Three days in Italy";
+    const TYPE_MS = 85;      // per keystroke
+    const HOLD_MS = 1400;    // caret left blinking once the line is finished
+    const headlineText = document.querySelector("[data-headline-text]");
+
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    async function typeHeadline() {
+      // The caret only ever exists while this function is running, so the paths
+      // that skip the animation cannot leave one blinking on the heading.
+      const caret = document.createElement("i");
+      caret.className = "caret";
+      headlineText.after(caret);
+
+      for (let typed = 1; typed <= HEADLINE.length; typed++) {
+        headlineText.textContent = HEADLINE.slice(0, typed);
+        await wait(TYPE_MS);
+      }
+
+      await wait(HOLD_MS);
+      caret.remove();
+    }
+
+    // Skipped when the user asks for less motion, and on a shared link, where
+    // the heading is behind the itinerary and would animate unseen. Either way
+    // the static text written into the template is what stays on screen.
+    const skipMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!skipMotion && !document.body.classList.contains("show-itinerary")) {
+      headlineText.textContent = "";
+      typeHeadline();
+    }
+
+    const hubSelect = document.querySelector("#hub");
+
+    // The dropdown lists "Rome — 24 places" to help the user choose, but that
+    // count is noise once they have chosen. A <select> always displays the text
+    // of its selected <option> and that text cannot be styled or overridden, so
+    // the only way to show a shorter label is to select a different option.
+    // This keeps one spare hidden option holding the bare city name and selects
+    // that instead; it carries the same value, so the form still submits "Rome".
+    hubSelect.addEventListener("change", () => {
+      const chosenOption = hubSelect.selectedOptions[0];
+      // Already showing the short label, or the "Choose a city" placeholder.
+      if (!chosenOption?.dataset.city) return;
+
+      let selectedLabel = hubSelect.querySelector("[data-selected-label]");
+      if (!selectedLabel) {
+        selectedLabel = document.createElement("option");
+        selectedLabel.hidden = true;
+        selectedLabel.dataset.selectedLabel = "";
+        hubSelect.prepend(selectedLabel);
+      }
+
+      selectedLabel.value = chosenOption.value;
+      selectedLabel.textContent = chosenOption.dataset.city;
+      selectedLabel.selected = true;
+    });
+
+    // A shared link opens with its hub already chosen, which is a selection the
+    // user never made and so never fired a change event for. Firing one now runs
+    // the shortening above rather than repeating it.
+    if (hubSelect.value) hubSelect.dispatchEvent(new Event("change"));
+
+    // The form and the itinerary are two views of one page, toggled by this
+    // class in CSS rather than by navigation, which keeps the user's filter
+    // selections intact behind the results with no state to restore.
+    //
+    // The .itinerary check matters: a failed request swaps in an error fragment
+    // instead, and that has to leave the form on screen to be corrected.
+    document.body.addEventListener("htmx:afterSwap", (event) => {
+      if (event.detail.target.id === "results" && event.detail.target.querySelector(".itinerary")) {
+        document.body.classList.add("show-itinerary");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+    });
+
+    // The address bar is kept pointed at the trip on screen by the HX-Replace-Url
+    // header that /itinerary sends with the fragment, so "Copy link" only has to
+    // copy the URL it finds. Errors send no such header, which is what stops a
+    // shared link from ever describing a trip that failed to build.
+    //
+    // The button reports back through its own label: it is what the user just
+    // clicked and therefore what they are already looking at.
+    document.body.addEventListener("click", async (event) => {
+      const shareButton = event.target.closest("[data-share-trip]");
+      if (!shareButton) return;
+
+      const label = shareButton.querySelector(".share-label");
+      try {
+        await navigator.clipboard.writeText(window.location.href);
+        label.textContent = "Link copied";
+        shareButton.classList.add("copied");
+      } catch {
+        // The clipboard needs a secure context and the user can refuse it. Say
+        // so rather than pretending: the same link is in the address bar.
+        label.textContent = "Copy failed";
+      }
+
+      setTimeout(() => {
+        label.textContent = "Copy link";
+        shareButton.classList.remove("copied");
+      }, 2400);
+    });
+
+    // "Edit trip" is delegated from the body because the button arrives with a
+    // swapped-in fragment and so cannot be bound at load. Clearing #results
+    // means the next submit cannot briefly flash the previous trip.
+    document.body.addEventListener("click", (event) => {
+      if (!event.target.closest("[data-edit-trip]")) return;
+      document.body.classList.remove("show-itinerary");
+      document.querySelector("#results").replaceChildren();
+
+      // Stepping back to the form is a change of view, not of trip, so the URL
+      // keeps its filters and gains a flag saying which of the two views it
+      // describes. Without it a reload would read the filters, rebuild the
+      // trip, and drop the user straight back onto the itinerary they left.
+      // The next submit clears the flag: /itinerary replaces the URL with the
+      // trip's own arguments, and `edit` is not one of them.
+      const url = new URL(window.location.href);
+      url.searchParams.set("edit", "1");
+      history.replaceState(null, "", url);
+
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  </script>
+</body>
+</html>
