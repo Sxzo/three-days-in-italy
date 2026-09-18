@@ -5,7 +5,8 @@
 I built a small planner that turns the messy 103-place catalog in `italy.json` into a structured dataset, then deterministically produces a three-day trip from it. You enter a starting city, a date, and what you're into, and get back an hour-by-hour itinerary that accounts for travel time, opening hours, and getting home each night.
 
 **Live:** https://three-days-in-italy-three.vercel.app  
-**Code:** https://github.com/Sxzo/three-days-in-italy
+**Code:** https://github.com/Sxzo/three-days-in-italy  
+**Run locally:** [see the bottom of this page](#run-it-locally)
 
 ## The data
 
@@ -61,3 +62,16 @@ As a product feature, the LLM does exactly one job: it reads the 16 places whose
 Thanks for reading, and I'm looking forward to extending it together!
 
 Lev
+
+---
+
+## Run it locally
+
+```
+pip install -r requirements-dev.txt
+python server/main.py                # http://localhost:5000
+python -m pytest                     # 32 tests
+python pipeline/build_places.py      # optional: rebuild the dataset
+```
+
+The rebuild is served from the LLM cache, so it only needs `OPENAI_API_KEY` (see `.env.example`) if `italy.json` gains new hour strings. To run just the app, `requirements.txt` is enough.
