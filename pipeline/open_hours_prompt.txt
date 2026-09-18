@@ -1,0 +1,29 @@
+Convert the place hours and seasonal notes into structured opening data.
+
+Defaults (use these unless notes explicitly override them):
+- Day numbers: 0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday. Omit closed days.
+- Day ranges are inclusive (Thurs-Sun includes Sunday; Tues-Sun is 2,3,4,5,6,0 and not Monday).
+- Every open day gets weeks [1, 2, 3, 4, 5, -1] (every week of the month).
+- open_months is [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].
+- Vague times, in the hours text or the notes: "morning" -> 08:00-12:00; "evening" -> 18:00-23:00; "weekday" -> days 1-5. Apply every listed/default day.
+
+Hours text is the schedule. A note changes structure only when it says when the whole place is open or closed:
+- A named week of the month (last Sunday, third weekend). Only first/second/third/fourth/last names a week. A plain weekday never does: "Sundays only" means every Sunday, so weeks stay [1, 2, 3, 4, 5, -1]. Narrow weeks on every day the hours already list and keep all of those days.
+- Named months, open or closed only ("Open April-October only", "October only"). Use exactly the months named.
+Everything else is advice and changes nothing: queues, booking, sell-outs, heat, crowds, and anything phrased as "best".
+Months and weekdays inside advice are still advice: "Booking essential April-October" and "Best April-October" both keep all 12 months, and a road closed to cars on Sundays keeps every week.
+A limit on one part of the place leaves the place itself open, even when it says "only": "Rooftop open May-September only" -> all 12 months. Same for a garden or canal seating.
+If notes say summer hours extend later, keep the posted hours as the only window and keep all months.
+
+Exceptions stay on that day only. Example: closed Sundays except last Sunday of the month -> day 0 with weeks [-1]; days 1-6 keep [1, 2, 3, 4, 5, -1].
+A week limit narrows weeks only: hours "Sat-Sun 9:00-19:00" with "third weekend of each month" -> day 6 and day 0, each with weeks [3].
+A note about access or traffic is not opening hours: "Road closed to cars on Sundays only" -> every day keeps weeks [1, 2, 3, 4, 5, -1].
+A month limit touches months only: "October only" -> open_months [10] and every day keeps weeks [1, 2, 3, 4, 5, -1].
+Normal example: hours "9:00-19:00", notes about queues or booking -> all 7 days, weeks [1, 2, 3, 4, 5, -1], all 12 months.
+
+Hours may be (none). If the notes state a time of day, use it: "weekday mornings only" -> days 1-5, 08:00-12:00.
+Otherwise open every day with an empty hours list, meaning the time of day is unknown. Do not invent 09:00-18:00 or any other window.
+Either way the month and week rules above still apply.
+
+Hours: {hours}
+Seasonal notes: {seasonal_notes}

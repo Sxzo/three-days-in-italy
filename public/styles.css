@@ -1,0 +1,1271 @@
+/* Tre Giorni styles, in source order:
+     tokens and page frame, planner form, itinerary results, map page, responsive.
+
+   Two things to know before editing. The green and red accents are the Italian
+   flag and are load-bearing rather than decorative: day 2 and day 3 are colour
+   coded with them, and the sidebar list and the map pins have to agree. And
+   several rules below are wired to markup or scripts elsewhere, not just to
+   appearance; those are called out individually. */
+
+:root {
+  --ink: #0a2540;
+  --muted: #425466;
+  --line: #e3e8ee;
+  --canvas: #f6f9fc;
+  --surface: #fff;
+  --purple: #635bff;
+  --purple-soft: #f2f0ff;
+  --italy-green: #009246;
+  --italy-white: #fff;
+  --italy-red: #ce2b37;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  margin: 0;
+  color: var(--ink);
+  background: var(--canvas);
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Soft green and red glows down the left and right edges: the Italian flag,
+   abstracted enough to read as ambient colour. Fixed so they stay put while the
+   page scrolls, and pointer-events:none so they never swallow a click. The map
+   page switches both off. */
+body::before,
+body::after {
+  position: fixed;
+  z-index: 1000;
+  top: 0;
+  bottom: 0;
+  width: clamp(80px, 12vw, 180px);
+  content: "";
+  pointer-events: none;
+  filter: blur(14px);
+}
+
+body::before {
+  left: -24px;
+  background: radial-gradient(
+    ellipse at left center,
+    rgb(0 146 70 / 32%),
+    transparent 72%
+  );
+}
+
+body::after {
+  right: -24px;
+  background: radial-gradient(
+    ellipse at right center,
+    rgb(206 43 55 / 30%),
+    transparent 72%
+  );
+}
+
+button,
+input,
+select {
+  color: inherit;
+  font: inherit;
+}
+
+/* No template currently renders a site header or brand mark; these four rules
+   (.site-header, .brand, .brand-mark, and .planner-layout further down) are
+   unused. Kept because the 68px height is still subtracted in .planner-view. */
+.site-header {
+  display: flex;
+  height: 68px;
+  padding: 0 clamp(20px, 5vw, 64px);
+  align-items: center;
+  justify-content: space-between;
+  border-top: 3px solid var(--purple);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.site-header p {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.brand-mark {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 8px;
+  color: white;
+  background: var(--purple);
+  font-family: Georgia, serif;
+  font-size: 10px;
+}
+
+/* ---------- Planner form ---------- */
+
+main {
+  width: min(1240px, calc(100% - 40px));
+  margin: 0 auto;
+}
+
+/* Centres the form in the viewport on first load. The 68px matches the header
+   height above, so this still reserves room for a header that is not rendered. */
+.planner-view {
+  display: flex;
+  min-height: calc(100vh - 68px);
+  padding: 40px 0 76px;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.intro {
+  max-width: 720px;
+  margin: 0 auto 30px;
+  text-align: center;
+}
+
+.eyebrow {
+  margin: 0 0 9px;
+  color: var(--purple);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(40px, 5vw, 58px);
+  font-weight: 400;
+  letter-spacing: -.04em;
+}
+
+/* The heading duplicated for assistive tech; see the comment beside it. */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Created by the typing script and removed once it finishes; never in the HTML,
+   so a page that does not animate has no caret to leave behind. */
+.caret {
+  display: inline-block;
+  width: 2px;
+  height: .82em;
+  margin-left: 3px;
+  vertical-align: -.04em;
+  background: var(--purple);
+  animation: caret-blink 1.05s steps(1, end) infinite;
+}
+
+@keyframes caret-blink {
+  50% { opacity: 0; }
+}
+
+.intro > p:last-child {
+  margin: 13px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.planner-layout {
+  display: block;
+}
+
+.filters {
+  display: grid;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 26px;
+  align-items: start;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  box-shadow: 0 8px 30px rgb(50 50 93 / 5%);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.field > span,
+legend {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+/* Marks the two fields the planner cannot run without. */
+.required-mark {
+  color: var(--italy-red);
+}
+
+.field input,
+.field select {
+  width: 100%;
+  height: 42px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  outline: none;
+  background: white;
+  font-size: 12px;
+}
+
+.field input:focus,
+.field select:focus {
+  border-color: #a8a3ff;
+  box-shadow: 0 0 0 3px rgb(99 91 255 / 10%);
+}
+
+fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+legend {
+  margin-bottom: 10px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chips label {
+  cursor: pointer;
+}
+
+/* The real checkbox is hidden but still focusable and still in the tab order,
+   which is why this is opacity rather than display:none or visibility:hidden.
+   Either of those would remove it from keyboard navigation and leave the chips
+   unreachable without a mouse. The visible chip is the adjacent span below. */
+.chips input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.chips span {
+  display: block;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  background: white;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* Focus has to be drawn on the span, since the input it actually lands on is
+   invisible. Without this the chips have no visible keyboard focus at all. */
+.chips input:focus-visible + span {
+  outline: 3px solid rgb(99 91 255 / 18%);
+}
+
+/* Every `input:checked + span` rule depends on the input being the span's
+   immediate previous sibling inside the label. Reordering that markup in
+   index.html silently breaks selection styling. */
+.chips input:checked + span {
+  border-color: #c5c1ff;
+  color: var(--purple);
+  background: var(--purple-soft);
+}
+
+.chips input:checked + span::before {
+  margin-right: 5px;
+  content: "✓";
+}
+
+/* "Avoid" chips are deliberately a different colour and use × instead of ✓, so
+   a glance at the form cannot confuse a thing you want with a thing you do not. */
+.avoid input:checked + span {
+  border-color: #edcbd4;
+  color: #945266;
+  background: #fff4f6;
+}
+
+.avoid input:checked + span::before {
+  content: "×";
+}
+
+.reset-button {
+  padding: 0;
+  border: 0;
+  color: var(--purple);
+  background: transparent;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.submit-button {
+  width: auto;
+  min-height: 44px;
+  padding: 11px 22px;
+  border: 0;
+  border-radius: 8px;
+  color: white;
+  background: var(--purple);
+  box-shadow: 0 4px 10px rgb(99 91 255 / 20%);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.submit-button:hover {
+  background: #5148e5;
+  box-shadow: 0 6px 14px rgb(99 91 255 / 28%);
+  transform: translateY(-1px);
+}
+
+.submit-button:focus-visible {
+  outline: 3px solid rgb(99 91 255 / 22%);
+  outline-offset: 2px;
+}
+
+.submit-button:active {
+  box-shadow: 0 2px 6px rgb(99 91 255 / 20%);
+  transform: translateY(0);
+}
+
+/* The submit button holds both labels at once and swaps which one is visible
+   while a request is in flight, so the button never changes width mid-click.
+   htmx adds and removes .htmx-request for us; see the pair of rules below. */
+.button-loading {
+  display: none;
+}
+
+.form-actions {
+  display: flex;
+  padding-top: 17px;
+  align-items: center;
+  justify-content: flex-end;
+  grid-column: 1 / -1;
+  gap: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.submit-button.htmx-request .button-label {
+  display: none;
+}
+
+.submit-button.htmx-request .button-loading {
+  display: inline;
+}
+
+/* ---------- Form / results view toggle ---------- */
+
+/* The form and the results occupy the same page and only one is ever visible.
+   index.html toggles .show-itinerary on <body> after a successful swap, which
+   flips the pair below. Nothing is destroyed on the way out, so going back to
+   the form restores every chip exactly as the user left it. */
+.results-wrap {
+  display: none;
+  position: relative;
+  min-width: 0;
+  padding: 48px 0 80px;
+}
+
+.show-itinerary .planner-view {
+  display: none;
+}
+
+.show-itinerary .results-wrap {
+  display: block;
+}
+
+/* .htmx-indicator and .htmx-request are set by htmx, not by our own code: the
+   first marks the elements named in hx-indicator, the second is present only
+   while the request is in flight. */
+.htmx-indicator {
+  position: absolute;
+  top: 6px;
+  right: 0;
+  color: var(--purple);
+  font-size: 9px;
+  opacity: 0;
+}
+
+.htmx-request .htmx-indicator,
+.htmx-request.htmx-indicator {
+  opacity: 1;
+}
+
+.htmx-request + #results {
+  opacity: .55;
+}
+
+/* ---------- Itinerary results ---------- */
+
+.empty-state {
+  padding: 70px 24px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  background: white;
+  text-align: center;
+}
+
+.empty-state h3 {
+  margin: 0;
+  font-family: Georgia, serif;
+  font-size: 22px;
+  font-weight: 400;
+}
+
+.empty-state p {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.itinerary-header h2 {
+  margin: 0;
+  font-family: Georgia, serif;
+  font-size: clamp(28px, 3vw, 38px);
+  font-weight: 400;
+  letter-spacing: -.025em;
+}
+
+.itinerary-header > div > p:last-child {
+  max-width: 570px;
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.itinerary-header {
+  display: flex;
+  margin-bottom: 24px;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.itinerary-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 16px;
+}
+
+.map-button {
+  display: inline-flex;
+  height: 38px;
+  padding: 0 14px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--purple);
+  border-radius: 8px;
+  color: white;
+  background: var(--purple);
+  box-shadow: 0 3px 8px rgb(99 91 255 / 18%);
+  font-size: 10px;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+
+.map-button svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.map-button:hover {
+  background: #5148e5;
+  box-shadow: 0 5px 12px rgb(99 91 255 / 25%);
+  transform: translateY(-1px);
+}
+
+.map-button:focus-visible {
+  outline: 3px solid rgb(99 91 255 / 18%);
+  outline-offset: 2px;
+}
+
+/* Sits beside the map button and deliberately reads as the quieter of the two:
+   same size and shape, outlined instead of filled. */
+.share-button {
+  display: inline-flex;
+  height: 38px;
+  padding: 0 14px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--purple);
+  background: var(--surface);
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 150ms ease, color 150ms ease, background-color 150ms ease;
+}
+
+.share-button svg {
+  width: 13px;
+  height: 13px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.share-button:hover {
+  border-color: var(--purple);
+  background: var(--purple-soft);
+}
+
+/* The label is the only confirmation the copy happened, so it changes text and
+   colour together; index.html adds .copied and removes it a moment later. This
+   has to outrank :hover, which the cursor is still sitting inside after a click,
+   and equal specificity is settled by order. */
+.share-button.copied {
+  border-color: var(--italy-green);
+  color: var(--italy-green);
+  background: rgb(0 146 70 / 6%);
+}
+
+.share-button:focus-visible {
+  outline: 3px solid rgb(99 91 255 / 18%);
+  outline-offset: 2px;
+}
+
+.itinerary-back {
+  display: inline-flex;
+  margin: 0 0 22px;
+  padding: 0;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  color: var(--purple);
+  background: transparent;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.itinerary-back span {
+  font-size: 14px;
+  transition: transform 150ms ease;
+}
+
+.itinerary-back:hover span {
+  transform: translateX(-2px);
+}
+
+.itinerary-back:focus-visible {
+  outline: 3px solid rgb(99 91 255 / 18%);
+  outline-offset: 4px;
+}
+
+.trip-summary {
+  display: grid;
+  height: 38px;
+  flex: 0 0 auto;
+  padding: 0;
+  align-items: center;
+  grid-template-columns: auto auto auto auto;
+  gap: 4px;
+}
+
+.trip-summary strong {
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1;
+}
+
+.trip-summary span {
+  color: var(--muted);
+  font-size: 7px;
+  font-weight: 600;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
+
+.trip-summary i {
+  display: none;
+}
+
+.trip-summary i + strong {
+  margin-left: 10px;
+}
+
+/* Three days side by side, so the whole trip is legible without scrolling.
+   minmax(0, 1fr) rather than 1fr because a grid track's default min-width is
+   auto, which lets a long place name push its column wider than its share. */
+.days {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.day-card {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+}
+
+.day-heading {
+  display: grid;
+  padding: 17px;
+  align-items: center;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(135deg, #fbfaff, #fff);
+}
+
+.day-number {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border-radius: 50%;
+  color: white;
+  background: var(--purple);
+  font-family: Georgia, serif;
+  font-size: 13px;
+}
+
+.day-heading p {
+  margin: 0 0 3px;
+  color: var(--purple);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.day-heading h3 {
+  margin: 0;
+  font-family: Georgia, serif;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.day-duration {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.stops {
+  margin: 0;
+  padding: 4px 16px 8px;
+  list-style: none;
+}
+
+.stops li {
+  position: relative;
+  display: grid;
+  padding: 14px 0;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 9px;
+}
+
+.stops li:not(:last-child) {
+  border-bottom: 1px solid var(--line);
+}
+
+.stop-marker {
+  position: relative;
+  padding-top: 1px;
+}
+
+.stop-marker span {
+  display: grid;
+  position: relative;
+  z-index: 1;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border: 1px solid #c9c6ff;
+  border-radius: 50%;
+  color: var(--purple);
+  background: var(--purple-soft);
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.stop-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--purple);
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.stop-meta span:last-child {
+  color: #806a37;
+}
+
+.stops article > .stop-time {
+  margin: 7px 0 0;
+  color: var(--purple);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: .01em;
+}
+
+.stops h4 {
+  margin: 4px 0;
+  font-family: Georgia, serif;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1.15;
+}
+
+.stop-location {
+  margin: 0;
+  color: var(--muted);
+  font-size: 8px;
+}
+
+.stops article > .stop-description {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.stops article > .stop-seasonal-note {
+  display: flex;
+  margin: 8px 0 0;
+  padding: 8px 10px 8px 8px;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #f0dda7;
+  border-radius: 10px;
+  color: #765b1b;
+  background: linear-gradient(135deg, #fffaf0, #fff7df);
+  box-shadow: 0 2px 8px rgb(118 91 27 / 6%);
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.stop-seasonal-note > span:first-child {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  place-items: center;
+  border: 1px solid #efd58c;
+  border-radius: 50%;
+  color: #c48900;
+  background: #fff;
+  font-size: 10px;
+}
+
+.stop-seasonal-note strong {
+  display: block;
+  margin-bottom: 1px;
+  font-size: 7px;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.stop-details {
+  display: flex;
+  margin-top: 8px;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.stop-details span {
+  padding: 4px 6px;
+  border-radius: 4px;
+  color: var(--muted);
+  background: var(--canvas);
+  font-size: 7px;
+  font-weight: 600;
+}
+
+/* Warns rather than informs: carries the same red as the "avoid" chips, and is
+   used for both "Book ahead" and "Hours unconfirmed". */
+.stop-details .booking {
+  color: #945266;
+  background: #fff4f6;
+}
+
+.day-empty {
+  padding: 32px 18px;
+  text-align: center;
+}
+
+.day-empty p {
+  margin: 0 0 6px;
+  font-family: Georgia, serif;
+  font-size: 15px;
+}
+
+.day-empty span,
+.itinerary-note {
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.itinerary-note {
+  margin: 16px 0 0;
+  text-align: center;
+}
+
+.itinerary-error > span {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  margin: 0 auto 14px;
+  place-items: center;
+  border-radius: 50%;
+  color: #945266;
+  background: #fff4f6;
+  font-weight: 800;
+}
+
+/* ---------- Map page ---------- */
+
+/* A full-height two-pane layout that does not scroll as a whole; the sidebar
+   scrolls on its own and the map fills whatever is left. */
+.map-page {
+  overflow: hidden;
+  background: white;
+}
+
+/* The flag glows are switched off here: they are fixed to the viewport and
+   would otherwise sit on top of the map. */
+.map-page::before,
+.map-page::after {
+  display: none;
+}
+
+.map-layout {
+  display: grid;
+  width: 100%;
+  height: 100vh;
+  grid-template-columns: minmax(300px, 380px) 1fr;
+}
+
+.map-sidebar {
+  position: relative;
+  z-index: 500;
+  overflow-y: auto;
+  border-right: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: 8px 0 28px rgb(10 37 64 / 8%);
+}
+
+.map-sidebar-header {
+  padding: 28px 26px 24px;
+  border-bottom: 1px solid var(--line);
+}
+
+.map-sidebar-header .itinerary-back {
+  margin-bottom: 26px;
+  text-decoration: none;
+}
+
+.map-sidebar-header h1 {
+  font-size: 28px;
+  line-height: 1.08;
+}
+
+.map-sidebar-header > p:last-child {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.map-day {
+  border-bottom: 1px solid var(--line);
+}
+
+.map-day > header {
+  display: flex;
+  padding: 18px 26px 12px;
+  align-items: center;
+  gap: 10px;
+}
+
+.map-day > header > span {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--purple);
+  background: var(--purple-soft);
+  font-family: Georgia, serif;
+  font-size: 11px;
+}
+
+.map-day header p {
+  margin: 0 0 2px;
+  color: var(--purple);
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.map-day header h2 {
+  margin: 0;
+  font-family: Georgia, serif;
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.map-day ol {
+  margin: 0;
+  padding: 0 14px 13px;
+  list-style: none;
+}
+
+.map-day li + li {
+  border-top: 1px solid var(--line);
+}
+
+.map-day button {
+  display: grid;
+  width: 100%;
+  padding: 11px 12px;
+  align-items: center;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
+  gap: 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 140ms ease;
+}
+
+.map-day button:hover,
+.map-day button.is-active {
+  background: var(--purple-soft);
+}
+
+.map-day button:focus-visible {
+  outline: 3px solid rgb(99 91 255 / 18%);
+}
+
+.map-list-number {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 50%;
+  color: white;
+  background: var(--purple);
+  font-size: 8px;
+  font-weight: 750;
+}
+
+/* Day colours: purple, then the flag's red and green. These must stay in step
+   with the .numbered-map-marker rules further down, because the sidebar entry
+   and its pin are the same stop and are matched by colour. The day-N class
+   comes from stop.day_number in map.html. */
+.map-day.day-2 .map-list-number,
+.map-day.day-2 > header > span {
+  background: var(--italy-red);
+}
+
+.map-day.day-2 header p {
+  color: var(--italy-red);
+}
+
+.map-day.day-3 .map-list-number,
+.map-day.day-3 > header > span {
+  background: var(--italy-green);
+}
+
+.map-day.day-3 header p {
+  color: var(--italy-green);
+}
+
+.map-day.day-2 > header > span,
+.map-day.day-3 > header > span {
+  color: white;
+}
+
+.map-list-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.map-list-copy strong {
+  overflow: hidden;
+  font-family: Georgia, serif;
+  font-size: 13px;
+  font-weight: 400;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.map-list-copy small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.map-list-arrow {
+  color: #9ba7b3;
+  font-size: 18px;
+}
+
+.map-day-empty {
+  margin: 0;
+  padding: 4px 26px 20px;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.map-panel {
+  position: relative;
+  min-width: 0;
+}
+
+#itinerary-map {
+  width: 100%;
+  height: 100%;
+  background: #e9edf2;
+}
+
+/* Map pins. A real <button> rather than a styled div so a pin can be reached
+   and activated from the keyboard. The white ring keeps the number legible over
+   busy tiles; colours mirror the sidebar rules above. */
+.numbered-map-marker {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.numbered-map-marker span {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 3px solid white;
+  border-radius: 50%;
+  color: white;
+  background: var(--purple);
+  box-shadow: 0 3px 10px rgb(10 37 64 / 28%);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.numbered-map-marker.day-2 span {
+  background: var(--italy-red);
+}
+
+.numbered-map-marker.day-3 span {
+  background: var(--italy-green);
+}
+
+.numbered-map-marker:focus-visible {
+  outline: 3px solid rgb(99 91 255 / 25%);
+  outline-offset: 3px;
+  border-radius: 50%;
+}
+
+/* MapLibre's own class, overridden to match our cards. Owned by the library, so
+   a version bump can rename it and silently drop this styling. */
+.maplibregl-popup-content {
+  border-radius: 8px;
+  box-shadow: 0 5px 20px rgb(10 37 64 / 18%);
+}
+
+.map-popup {
+  display: flex;
+  min-width: 150px;
+  flex-direction: column;
+  gap: 4px;
+  font-family: Inter, ui-sans-serif, sans-serif;
+}
+
+.map-popup small {
+  color: var(--purple);
+  font-size: 8px;
+  font-weight: 750;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.map-popup strong {
+  color: var(--ink);
+  font-family: Georgia, serif;
+  font-size: 15px;
+  font-weight: 400;
+}
+
+.map-popup span {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.map-empty {
+  position: absolute;
+  z-index: 500;
+  top: 50%;
+  left: 50%;
+  padding: 14px 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+  color: var(--muted);
+  font-size: 10px;
+  transform: translate(-50%, -50%);
+}
+
+.maplibregl-ctrl-attrib {
+  font-size: 8px;
+}
+
+/* ---------- Responsive ---------- */
+
+/* Tablet: the three day cards stack, since three columns of stop detail stop
+   being readable well before the form does. */
+@media (max-width: 850px) {
+  .filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .filters fieldset {
+    grid-column: span 1;
+  }
+
+  .days {
+    grid-template-columns: 1fr;
+  }
+
+  .map-layout {
+    grid-template-columns: 310px 1fr;
+  }
+}
+
+/* Phone: single column throughout. The map layout reverses to column-reverse so
+   the map sits above its list, and .map-page has to regain normal scrolling
+   since the panes no longer fit one screen between them. */
+@media (max-width: 620px) {
+  .site-header p {
+    display: none;
+  }
+
+  main {
+    width: min(100% - 28px, 1240px);
+  }
+
+  .planner-view {
+    min-height: auto;
+    padding: 36px 0 60px;
+  }
+
+  .results-wrap {
+    padding: 36px 0 60px;
+  }
+
+  .filters {
+    grid-template-columns: 1fr;
+  }
+
+  .filters fieldset {
+    grid-column: auto;
+  }
+
+  .form-actions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+    grid-column: auto;
+    gap: 14px;
+  }
+
+  .submit-button {
+    width: 100%;
+  }
+
+  .reset-button {
+    align-self: center;
+  }
+
+  .itinerary-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .itinerary-actions {
+    width: 100%;
+  }
+
+  .map-page {
+    overflow: auto;
+  }
+
+  .map-layout {
+    display: flex;
+    height: auto;
+    flex-direction: column-reverse;
+  }
+
+  .map-panel {
+    height: 52vh;
+    min-height: 360px;
+  }
+
+  .map-sidebar {
+    overflow: visible;
+    border-top: 1px solid var(--line);
+    border-right: 0;
+  }
+
+}

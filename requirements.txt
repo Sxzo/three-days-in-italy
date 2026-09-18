@@ -1,0 +1,3 @@
+# Runtime dependencies for the deployed app (server/).
+# The server reads the prebuilt data/places.json, so it needs no pipeline deps.
+Flask==3.0.3

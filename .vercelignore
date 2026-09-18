@@ -1,0 +1,6 @@
+scratchpad.ipynb
+tests/
+pipeline/
+data/italy.json
+data/hours_llm_cache.json
+.pytest_cache/

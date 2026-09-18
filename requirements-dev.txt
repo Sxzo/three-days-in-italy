@@ -1,0 +1,17 @@
+# Everything needed to rebuild the dataset, run the tests, and open the notebooks.
+-r requirements.txt
+
+# pipeline/ — regenerating data/places.json from data/italy.json
+pandas==3.0.0
+pydantic==2.13.4
+python-dotenv==1.0.1
+openai==3.14.1
+
+# tests/ — test_server.py builds request args with werkzeug directly
+pytest==8.3.3
+Werkzeug==3.1.7
+
+# notebooks — data_processing.ipynb and scratchpad.ipynb
+ipykernel==7.1.0
+matplotlib==3.11.1
+numpy==2.4.1
